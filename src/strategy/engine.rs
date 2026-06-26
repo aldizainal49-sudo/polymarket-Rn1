@@ -4,7 +4,9 @@ use tracing::{info, error, warn};
 use rust_decimal::Decimal;
 
 use crate::config::Config;
-use crate::client::{ClobClient, GammaClient, OrderSide};
+use crate::client::ClobClient;
+use crate::client::GammaClient;
+use crate::client::types::OrderSide;
 use crate::client::websocket::{WebSocketManager, PriceUpdate};
 use crate::order::OrderManager;
 use crate::order::paper_executor::PaperExecutor;
@@ -21,6 +23,7 @@ use crate::client::sportsdataio::SportsDataIOClient;
 use crate::client::sportradar::SportradarClient;
 use crate::client::pmxt_ws_pool::PmxtWebSocketPool;
 
+#[derive(Debug)]
 pub struct TradingEngine {
     config: Config,
     clob_client: Arc<ClobClient>,
@@ -88,20 +91,25 @@ impl TradingEngine {
     }
 
     pub async fn run(&mut self) -> Result<(), anyhow::Error> {
-        info!("🚀 Starting RN1 Trading Engine v2.0");
-        info!("📊 Strategies: Mispricing | MarketMaking | HFT | Hedging | Hold | Farming");
+        info!("Starting RN1 Trading Engine v2.0");
+        info!("Strategies: Mispricing | MarketMaking | HFT | Hedging | Hold | Farming");
 
-        let (price_tx, price_rx) = tokio::sync::mpsc::channel::<PriceUpdate>(10000);
+        let (price_tx, _price_rx) = tokio::sync::mpsc::channel::<PriceUpdate>(10000);
         let ws_manager = WebSocketManager::new(Arc::new(self.config.clone()), price_tx);
-        tokio::spawn(async move { if let Err(e) = ws_manager.run().await { error!("WS error: {}", e); } });
+        tokio::spawn(async move { 
+            if let Err(e) = ws_manager.run().await { 
+                error!("WS error: {}", e); 
+            } 
+        });
 
         let hft_engine = self.hft_engine.clone();
         let hedging_engine = self.hedging_engine.clone();
-        let mut hold_engine = self.hold_engine.clone();
+        let hold_engine = self.hold_engine.clone();
         let farming_engine = self.farming_engine.clone();
         let order_manager = self.order_manager.clone();
         let clob = self.clob_client.clone();
         let gamma = self.gamma_client.clone();
+        let market_making_engine = MarketMakingEngine::new(&self.config.trading);
 
         // MAIN LOOP
         let scan_interval = self.config.trading.scan_interval_ms;
@@ -112,9 +120,11 @@ impl TradingEngine {
                 if let Ok(markets) = gamma.get_active_markets(100).await {
                     for market in markets {
                         if let Ok(order_book) = clob.get_order_book(&market.market_id).await {
-                            let orders = MarketMakingEngine::new(&TradingConfig::default()).generate_maker_orders(&order_book);
+                            let orders = market_making_engine.generate_maker_orders(&order_book);
                             for order in orders {
-                                let _ = order_manager.place_order(&order.token_id, order.side, order.price, order.size, order.post_only).await;
+                                let mut om = order_manager.clone();
+                                let om_mut = Arc::make_mut(&mut om);
+                                let _ = om_mut.place_order(&order.token_id, order.side, order.price, order.size, order.post_only).await;
                             }
                         }
                     }
@@ -127,9 +137,11 @@ impl TradingEngine {
     }
 
     pub async fn shutdown(&self) -> Result<(), anyhow::Error> {
-        info!("🛑 Shutting down...");
+        info!("Shutting down...");
         self.clob_client.cancel_all_orders().await?;
-        if let Some(pmxt) = &self.pmxt_pool { pmxt.close_all().await; }
+        if let Some(pmxt) = &self.pmxt_pool {
+            pmxt.close_all().await;
+        }
         Ok(())
     }
 }

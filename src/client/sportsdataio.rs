@@ -4,15 +4,17 @@ use anyhow::Result;
 
 #[derive(Debug, Deserialize)]
 pub struct SportsDataIOFixture {
-    pub GameID: u32,
-    pub HomeTeam: String,
-    pub AwayTeam: String,
-    pub Status: String,
-    pub HomeScore: Option<u32>,
-    pub AwayScore: Option<u32>,
-    pub DateTime: String,
+    pub game_id: u32,
+    pub home_team: String,
+    pub away_team: String,
+    pub status: String,
+    pub home_score: Option<u32>,
+    pub away_score: Option<u32>,
+    #[serde(rename = "DateTime")]
+    pub date_time: String,
 }
 
+#[derive(Debug)]
 pub struct SportsDataIOClient {
     client: Client,
     api_key: String,

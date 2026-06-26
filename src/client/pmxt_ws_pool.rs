@@ -18,12 +18,14 @@ pub struct PmxtPriceUpdate {
     pub source_connection: u32,
 }
 
+#[derive(Debug)]
 struct PmxtConnection {
     id: u32,
     venue: String,
-    write: tokio_tungstenite::WebSocketStream,
+    write: tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 }
 
+#[derive(Debug)]
 pub struct PmxtWebSocketPool {
     connections: Arc<DashMap<u32, Arc<Mutex<PmxtConnection>>>>,
     price_cache: Arc<DashMap<String, PmxtPriceUpdate>>,
@@ -33,11 +35,12 @@ pub struct PmxtWebSocketPool {
 
 impl PmxtWebSocketPool {
     pub async fn new(num_connections: u32, venues: Vec<String>) -> Result<Self> {
+        let venues_clone = venues.clone();
         let pool = Self {
             connections: Arc::new(DashMap::new()),
             price_cache: Arc::new(DashMap::new()),
             num_connections,
-            venues,
+            venues: venues_clone,
         };
 
         for i in 0..num_connections {
@@ -45,10 +48,10 @@ impl PmxtWebSocketPool {
             match pool.connect_websocket(i, &venue).await {
                 Ok(conn) => {
                     pool.connections.insert(i, Arc::new(Mutex::new(conn)));
-                    info!("✅ PMXT WebSocket #{} connected to {}", i, venue);
+                    info!("PMXT WebSocket #{} connected to {}", i, venue);
                 }
                 Err(e) => {
-                    error!("❌ PMXT WebSocket #{} failed: {}", i, e);
+                    error!("PMXT WebSocket #{} failed: {}", i, e);
                 }
             }
         }
@@ -127,13 +130,19 @@ impl PmxtWebSocketPool {
         for entry in self.connections.iter() {
             let conn = entry.value();
             let mut guard = conn.lock().await;
-            let _ = guard.write.close().await;
+            let _ = guard.write.close(None).await;
         }
-        info!("🔌 All PMXT WebSocket connections closed");
+        info!("All PMXT WebSocket connections closed");
     }
 }
 
 pub async fn create_pmxt_pool() -> Result<PmxtWebSocketPool> {
-    let venues = vec!["polymarket".to_string(), "polymarket".to_string(), "kalshi".to_string(), "smarkets".to_string(), "polymarket".to_string()];
+    let venues = vec![
+        "polymarket".to_string(),
+        "polymarket".to_string(),
+        "kalshi".to_string(),
+        "smarkets".to_string(),
+        "polymarket".to_string()
+    ];
     PmxtWebSocketPool::new(5, venues).await
 }

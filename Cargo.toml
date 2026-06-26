@@ -8,10 +8,11 @@ edition = "2021"
 tokio = { version = "1", features = ["full", "sync"] }
 tokio-stream = "0.1"
 futures = "0.3"
+futures-util = "0.3"
 
 # HTTP & WebSocket
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-tungstenite = "0.21"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+tungstenite = { version = "0.21", default-features = false }
 tokio-tungstenite = "0.21"
 url = "2.5"
 
@@ -24,7 +25,6 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 hmac = "0.12"
 hex = "0.4"
-ethers = { version = "2", features = ["signers", "eip712"] }
 
 # Math
 rust_decimal = { version = "1", features = ["serde", "maths"] }
@@ -41,7 +41,7 @@ dotenv = "0.15"
 config = "0.14"
 
 # Utilities
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 dashmap = "5"
 parking_lot = "0.12"
 rand = "0.8"
@@ -49,14 +49,11 @@ rand = "0.8"
 # CLI
 clap = { version = "4", features = ["derive"] }
 
-# Google Sheets (opsional)
-google-sheets4 = "7.0.0"
-yup-oauth2 = "8.0.0"
-hyper = "0.14"
-hyper-rustls = "0.24"
-
 # Regex (untuk parsing AI response)
 regex = "1"
 
 # CSV untuk backtesting
 csv = "1"
+
+# CtrlC handler
+ctrlc = "3"

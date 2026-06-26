@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::collections::VecDeque;
 use reqwest::Client;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::*;
@@ -9,10 +10,11 @@ use hex;
 use chrono::Utc;
 
 use crate::config::Config;
-use crate::client::{Order, OrderSide, OrderStatus, OrderBook};
+use crate::client::types::{Order, OrderSide, OrderStatus, OrderBook};
 
 type HmacSha256 = Hmac<Sha256>;
 
+#[derive(Debug)]
 pub struct ClobClient {
     client: Client,
     base_url: String,
@@ -45,13 +47,26 @@ impl ClobClient {
         let response = self.client.get(&url).send().await?;
         let data: serde_json::Value = response.json().await?;
 
-        let bids = data["bids"].as_array().unwrap_or(&vec![])
-            .iter().map(|b| (Decimal::from_str(b[0].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO), Decimal::from_str(b[1].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO))).collect();
-        let asks = data["asks"].as_array().unwrap_or(&vec![])
-            .iter().map(|b| (Decimal::from_str(b[0].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO), Decimal::from_str(b[1].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO))).collect();
+        let mut bids = VecDeque::new();
+        if let Some(bids_array) = data["bids"].as_array() {
+            for b in bids_array {
+                let price = Decimal::from_str_exact(b[0].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO);
+                let size = Decimal::from_str_exact(b[1].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO);
+                bids.push_back((price, size));
+            }
+        }
 
-        let best_bid = bids.first().map(|(p, _)| *p).unwrap_or(Decimal::ZERO);
-        let best_ask = asks.first().map(|(p, _)| *p).unwrap_or(Decimal::ONE);
+        let mut asks = VecDeque::new();
+        if let Some(asks_array) = data["asks"].as_array() {
+            for a in asks_array {
+                let price = Decimal::from_str_exact(a[0].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO);
+                let size = Decimal::from_str_exact(a[1].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO);
+                asks.push_back((price, size));
+            }
+        }
+
+        let best_bid = bids.front().map(|(p, _)| *p).unwrap_or(Decimal::ZERO);
+        let best_ask = asks.front().map(|(p, _)| *p).unwrap_or(Decimal::ONE);
         
         Ok(OrderBook {
             market_id: data["market"].as_str().unwrap_or("").to_string(),
@@ -69,7 +84,10 @@ impl ClobClient {
         let path = "/order";
         let body = json!({
             "token_id": token_id,
-            "side": match side { OrderSide::Buy => "BUY", OrderSide::Sell => "SELL" },
+            "side": match side {
+                OrderSide::Buy => "BUY",
+                OrderSide::Sell => "SELL"
+            },
             "price": price.to_string(),
             "size": size.to_string(),
             "post_only": post_only,
@@ -110,5 +128,54 @@ impl ClobClient {
             .header("POLY_PASSPHRASE", &self.passphrase)
             .send().await?;
         Ok(())
+    }
+
+    pub async fn get_open_orders(&self) -> Result<Vec<Order>, anyhow::Error> {
+        let path = "/orders";
+        let signature = self.sign_request("GET", path, "");
+        let timestamp = Utc::now().timestamp().to_string();
+        
+        let response = self.client.get(&format!("{}{}", self.base_url, path))
+            .header("POLY_API_KEY", &self.api_key)
+            .header("POLY_SIGNATURE", signature)
+            .header("POLY_TIMESTAMP", timestamp)
+            .header("POLY_PASSPHRASE", &self.passphrase)
+            .send().await?;
+
+        let data: serde_json::Value = response.json().await?;
+        let mut orders = Vec::new();
+        
+        if let Some(orders_array) = data.as_array() {
+            for order_data in orders_array {
+                let side = match order_data["side"].as_str().unwrap_or("") {
+                    "BUY" => OrderSide::Buy,
+                    "SELL" => OrderSide::Sell,
+                    _ => continue,
+                };
+                
+                let status = match order_data["status"].as_str().unwrap_or("") {
+                    "OPEN" => OrderStatus::Open,
+                    "PARTIALLY_FILLED" => OrderStatus::PartiallyFilled,
+                    "FILLED" => OrderStatus::Filled,
+                    "CANCELLED" => OrderStatus::Cancelled,
+                    "REJECTED" => OrderStatus::Rejected,
+                    "EXPIRED" => OrderStatus::Expired,
+                    _ => OrderStatus::Open,
+                };
+
+                orders.push(Order {
+                    order_id: order_data["order_id"].as_str().unwrap_or("").to_string(),
+                    market_id: order_data["market"].as_str().unwrap_or("").to_string(),
+                    token_id: order_data["token_id"].as_str().unwrap_or("").to_string(),
+                    side,
+                    price: Decimal::from_str_exact(order_data["price"].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO),
+                    size: Decimal::from_str_exact(order_data["size"].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO),
+                    filled_size: Decimal::from_str_exact(order_data["filled_size"].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO),
+                    status,
+                });
+            }
+        }
+        
+        Ok(orders)
     }
 }

@@ -18,6 +18,7 @@ pub struct SportmonksParticipant {
     pub name: String,
 }
 
+#[derive(Debug)]
 pub struct SportmonksClient {
     client: Client,
     api_token: String,

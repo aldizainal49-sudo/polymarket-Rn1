@@ -1,51 +1,48 @@
-use google_sheets4::api::ValueRange;
-use google_sheets4::{hyper, hyper_rustls, oauth2, Sheets};
-use oauth2::read_service_account_key;
 use chrono::Utc;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use anyhow::Result;
+use std::path::Path;
 
+/// Simple file-based logger for trading activities
+#[derive(Debug)]
 pub struct SheetLogger {
-    sheet_id: String,
-    hub: Sheets<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>>,
+    log_file: String,
 }
 
 impl SheetLogger {
-    pub async fn new(credentials_path: &str, sheet_id: &str) -> Result<Self> {
-        let secret = read_service_account_key(credentials_path).await?;
-        let auth = oauth2::ServiceAccountAuthenticator::builder(secret)
-            .build()
-            .await?;
-        let hub = Sheets::new(
-            hyper::Client::builder().build(
-                hyper_rustls::HttpsConnectorBuilder::new()
-                    .with_native_roots()
-                    .https_or_http()
-                    .enable_http1()
-                    .build(),
-            ),
-            auth,
-        );
-
-        Ok(SheetLogger {
-            sheet_id: sheet_id.to_string(),
-            hub,
-        })
+    pub async fn new(_credentials_path: &str, sheet_id: &str) -> Result<Self> {
+        // Create a simple file logger instead of Google Sheets
+        let log_file = format!("logs/trades_{}.csv", sheet_id);
+        
+        // Create logs directory if it doesn't exist
+        if let Some(parent) = Path::new(&log_file).parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        
+        // Create header if file doesn't exist
+        let file_exists = std::path::Path::new(&log_file).exists();
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_file)?;
+        
+        if !file_exists {
+            writeln!(file, "timestamp,market_id,side,price,size,status")?;
+        }
+        
+        Ok(SheetLogger { log_file })
     }
 
     pub async fn append_row(&self, row_data: Vec<String>) -> Result<()> {
-        let range = "Logs!A:F";
-        let value_range = ValueRange {
-            values: Some(vec![row_data]),
-            ..Default::default()
-        };
-
-        self.hub
-            .spreadsheets()
-            .values_append(value_range, &self.sheet_id, range)
-            .value_input_option("USER_ENTERED")
-            .doit()
-            .await?;
-
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.log_file)?;
+        
+        let row_str = row_data.join(",");
+        writeln!(file, "{}", row_str)?;
+        
         Ok(())
     }
 

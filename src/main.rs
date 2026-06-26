@@ -7,6 +7,7 @@ mod logger;
 mod backtest;
 
 use std::env;
+use std::sync::Arc;
 use dotenv::dotenv;
 use tracing_subscriber;
 use tracing::info;
@@ -50,7 +51,7 @@ async fn main() -> Result<()> {
 
     // === BACKTEST MODE ===
     if cli.backtest {
-        info!("📊 Running Backtest Mode...");
+        info!("Running Backtest Mode...");
         let config = Config::from_file(&cli.config)?;
         let mut backtest_engine = backtest::BacktestEngine::new(
             config.trading.clone(),
@@ -60,16 +61,16 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    info!("📄 Loading config from: {}", cli.config);
+    info!("Loading config from: {}", cli.config);
     let mut config = Config::from_file(&cli.config)?;
 
     if cli.paper {
         config.trading.paper_mode = true;
-        info!("📝 PAPER MODE ACTIVATED");
-        info!("💰 Starting Paper Balance: ${:.2}", config.trading.paper_balance);
+        info!("PAPER MODE ACTIVATED");
+        info!("Starting Paper Balance: ${:.2}", config.trading.paper_balance);
     } else {
         config.trading.paper_mode = false;
-        info!("🔴 LIVE MODE ACTIVATED");
+        info!("LIVE MODE ACTIVATED");
     }
 
     // === AI CLIENT ===
@@ -78,10 +79,10 @@ async fn main() -> Result<()> {
             .unwrap_or_else(|_| "https://api.z.ai/api/v1".to_string());
         let model = env::var("GLM_MODEL")
             .unwrap_or_else(|_| "glm-5.2".to_string());
-        info!("🧠 GLM-5.2 AI Client initialized");
+        info!("GLM-5.2 AI Client initialized");
         Some(AIClient::new(key, base_url, model))
     } else {
-        info!("⚠️ GLM_API_KEY not set. AI prediction disabled.");
+        info!("GLM_API_KEY not set. AI prediction disabled.");
         None
     };
 
@@ -90,11 +91,11 @@ async fn main() -> Result<()> {
         if let Ok(sheet_id) = env::var("GOOGLE_SHEET_ID") {
             match SheetLogger::new(&creds_path, &sheet_id).await {
                 Ok(logger) => {
-                    info!("✅ Google Sheets Logger initialized.");
+                    info!("Google Sheets Logger initialized.");
                     Some(logger)
                 }
                 Err(e) => {
-                    info!("⚠️ Failed to initialize Google Sheets Logger: {}", e);
+                    info!("Failed to initialize Google Sheets Logger: {}", e);
                     None
                 }
             }
@@ -107,44 +108,44 @@ async fn main() -> Result<()> {
 
     // === SPORTMONKS ===
     let sportmonks_client = if let Ok(token) = env::var("SPORTMONKS_API_TOKEN") {
-        info!("⚽ Sportmonks client initialized");
+        info!("Sportmonks client initialized");
         Some(SportmonksClient::new(token))
     } else {
-        info!("⚠️ SPORTMONKS_API_TOKEN not set.");
+        info!("SPORTMONKS_API_TOKEN not set.");
         None
     };
 
     // === SPORTSDATAIO ===
     let sportsdataio_client = if let Ok(key) = env::var("SPORTSDATAIO_API_KEY") {
-        info!("🏀 SportsDataIO client initialized");
+        info!("SportsDataIO client initialized");
         Some(SportsDataIOClient::new(key))
     } else {
-        info!("⚠️ SPORTSDATAIO_API_KEY not set.");
+        info!("SPORTSDATAIO_API_KEY not set.");
         None
     };
 
     // === SPORTRADAR ===
     let sportradar_client = if let Ok(key) = env::var("SPORTRADAR_API_KEY") {
-        info!("🏟️ Sportradar client initialized");
+        info!("Sportradar client initialized");
         Some(SportradarClient::new(key))
     } else {
-        info!("⚠️ SPORTRADAR_API_KEY not set.");
+        info!("SPORTRADAR_API_KEY not set.");
         None
     };
 
     // === PMXT WEB SOCKET POOL (5 connections) ===
     let pmxt_pool = match create_pmxt_pool().await {
         Ok(pool) => {
-            info!("✅ PMXT WebSocket Pool with 5 connections created");
+            info!("PMXT WebSocket Pool with 5 connections created");
             Some(pool)
         }
         Err(e) => {
-            info!("⚠️ PMXT WebSocket Pool failed: {}", e);
+            info!("PMXT WebSocket Pool failed: {}", e);
             None
         }
     };
 
-    let mut engine = TradingEngine::new(
+    let engine = TradingEngine::new(
         config,
         ai_client,
         logger,
@@ -154,9 +155,11 @@ async fn main() -> Result<()> {
         pmxt_pool,
     ).await?;
 
-    let engine_clone = engine;
+    let engine_arc = Arc::new(engine);
+    let engine_clone = engine_arc.clone();
+    
     ctrlc::set_handler(move || {
-        info!("⚠️ Received shutdown signal");
+        info!("Received shutdown signal");
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async {
@@ -167,7 +170,7 @@ async fn main() -> Result<()> {
         std::process::exit(0);
     })?;
 
-    engine.run().await?;
+    Arc::try_unwrap(engine_arc).unwrap().run().await?;
 
     Ok(())
 }

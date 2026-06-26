@@ -27,6 +27,7 @@ pub struct Team {
     pub alias: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct SportradarClient {
     client: Client,
     api_key: String,
@@ -48,22 +49,14 @@ impl SportradarClient {
         format!("{}{}?api_key={}", base, endpoint, self.api_key)
     }
 
-    pub async fn get_todays_schedule(&self, sport: &str) -> Result<Vec<Game>> {
-        let date = Utc::now().format("%Y-%m-%d").to_string();
-        let url = self.build_url(sport, &format!("/games/{}/schedule", date));
-        let response = self.client.get(&url).send().await?;
-        if response.status().is_success() {
-            let data: ScheduleResponse = response.json().await?;
-            Ok(data.games)
-        } else {
-            warn!("Sportradar {} error", sport);
-            Ok(Vec::new())
-        }
-    }
-
     pub async fn get_live_games(&self, sport: &str) -> Result<Vec<Game>> {
-        let games = self.get_todays_schedule(sport).await?;
-        let live: Vec<Game> = games.into_iter().filter(|g| g.status == "inprogress" || g.status == "halftime").collect();
-        Ok(live)
+        let url = self.build_url(sport, "/games/live");
+        let response = self.client.get(&url).send().await?;
+        let data: serde_json::Value = response.json().await?;
+        if let Some(games) = data.get("games").and_then(|g| g.as_array()) {
+            let parsed: Vec<Game> = serde_json::from_value(serde_json::Value::Array(games.clone()))?;
+            return Ok(parsed);
+        }
+        Ok(Vec::new())
     }
 }

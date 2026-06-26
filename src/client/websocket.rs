@@ -27,13 +27,13 @@ impl WebSocketManager {
 
     pub async fn run(&self) -> Result<()> {
         let url = self.config.polymarket.ws_url.clone();
-        info!("🔌 Connecting to WebSocket: {}", url);
+        info!("Connecting to WebSocket: {}", url);
         let (ws_stream, _) = connect_async(&url).await?;
         let (mut write, mut read) = ws_stream.split();
 
         let subscribe_msg = json!({ "type": "subscribe", "channels": ["market"] }).to_string();
         write.send(Message::Text(subscribe_msg)).await?;
-        info!("✅ Subscribed to market channel");
+        info!("Subscribed to market channel");
 
         let price_tx = self.price_tx.clone();
         tokio::spawn(async move {
@@ -44,8 +44,12 @@ impl WebSocketManager {
                             if let Some(market_id) = price_data.get("market").and_then(|v| v.as_str()) {
                                 if let Some(token_id) = price_data.get("token_id").and_then(|v| v.as_str()) {
                                     if let Some(price_str) = price_data.get("price").and_then(|v| v.as_str()) {
-                                        if let Ok(price) = Decimal::from_str(price_str) {
-                                            let _ = price_tx.send(PriceUpdate { market_id: market_id.to_string(), token_id: token_id.to_string(), price }).await;
+                                        if let Ok(price) = Decimal::from_str_exact(price_str) {
+                                            let _ = price_tx.send(PriceUpdate { 
+                                                market_id: market_id.to_string(), 
+                                                token_id: token_id.to_string(), 
+                                                price 
+                                            }).await;
                                         }
                                     }
                                 }
