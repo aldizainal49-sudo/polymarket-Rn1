@@ -32,10 +32,10 @@ impl HftEngine {
             return Ok(());
         }
         info!("HFT Engine started");
-        
+
         while let Some(update) = price_rx.recv().await {
             self.price_cache.insert(update.token_id.clone(), update.price);
-            
+
             if self.config.arbitrage_threshold > Decimal::ZERO {
                 self.check_arbitrage(&update).await?;
             }
