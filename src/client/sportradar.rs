@@ -1,8 +1,6 @@
 use reqwest::Client;
 use serde::Deserialize;
 use anyhow::Result;
-use chrono::Utc;
-use tracing::warn;
 
 #[derive(Debug, Deserialize)]
 pub struct ScheduleResponse {
