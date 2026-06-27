@@ -1,5 +1,4 @@
 use rust_decimal::Decimal;
-use rust_decimal::prelude::*;
 use crate::client::types::MarketData;
 use crate::config::TradingConfig;
 
