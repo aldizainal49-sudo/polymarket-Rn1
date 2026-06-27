@@ -1,7 +1,7 @@
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{StreamExt};
 use serde_json::Value;
-use tracing::{info, error};
+use tracing::info;
 use dashmap::DashMap;
 use std::sync::Arc;
 use anyhow::Result;
@@ -59,7 +59,7 @@ impl SportsWebSocket {
                     
                     let match_data = LiveMatchData {
                         game_id,
-                        slug,
+                        slug: slug.clone(),
                         home_team,
                         away_team,
                         score,
@@ -68,7 +68,7 @@ impl SportsWebSocket {
                         status,
                         live
                     };
-                    self.cache.insert(slug.clone(), match_data);
+                    self.cache.insert(slug, match_data);
                 }
             }
         }
