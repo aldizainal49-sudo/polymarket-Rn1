@@ -20,24 +20,24 @@ impl GammaClient {
         let data: Value = response.json().await?;
 
         let mut markets = Vec::new();
-        
+
         if let Some(markets_array) = data["data"].as_array() {
             for m in markets_array {
                 let category = m["category"].as_str().unwrap_or("");
                 if !["sports", "Sports", "sport"].contains(&category) {
                     continue;
                 }
-                
+
                 let volume = Decimal::from_str_exact(m["volume"].as_str().unwrap_or("0")).unwrap_or(Decimal::ZERO);
                 if volume < Decimal::from(1000) {
                     continue;
                 }
-                
+
                 let yes_price = Decimal::from_str_exact(m["yes_price"].as_str().unwrap_or("0.5"))
                     .unwrap_or(Decimal::from(50) / Decimal::from(100));
                 let no_price = Decimal::from_str_exact(m["no_price"].as_str().unwrap_or("0.5"))
                     .unwrap_or(Decimal::from(50) / Decimal::from(100));
-                
+
                 let end_date = m["end_date"].as_str().and_then(|s| {
                     chrono::DateTime::parse_from_rfc3339(s)
                         .map(|d| d.with_timezone(&chrono::Utc))
@@ -57,7 +57,7 @@ impl GammaClient {
                 });
             }
         }
-        
+
         Ok(markets)
     }
 
@@ -67,12 +67,12 @@ impl GammaClient {
         let data: Value = response.json().await?;
 
         let m = data["data"].as_object().ok_or_else(|| anyhow::anyhow!("Market not found"))?;
-        
+
         let yes_price = Decimal::from_str_exact(m["yes_price"].as_str().unwrap_or("0.5"))
             .unwrap_or(Decimal::from(50) / Decimal::from(100));
         let no_price = Decimal::from_str_exact(m["no_price"].as_str().unwrap_or("0.5"))
             .unwrap_or(Decimal::from(50) / Decimal::from(100));
-        
+
         let end_date = m["end_date"].as_str().and_then(|s| {
             chrono::DateTime::parse_from_rfc3339(s)
                 .map(|d| d.with_timezone(&chrono::Utc))
