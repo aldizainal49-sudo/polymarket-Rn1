@@ -37,4 +37,28 @@ impl SheetLogger {
             .open(&self.log_file)?;
 
         let row_str = row_data.join(",");
-        writeln!(file, "{}", row
+        writeln!(file, "{}", row_str)?;
+
+        Ok(())
+    }
+
+    pub async fn log_trade(
+        &self,
+        market_id: &str,
+        side: &str,
+        price: f64,
+        size: f64,
+        status: &str,
+    ) -> Result<()> {
+        let now = Utc::now().to_rfc3339();
+        let row = vec![
+            now,
+            market_id.to_string(),
+            side.to_string(),
+            price.to_string(),
+            size.to_string(),
+            status.to_string(),
+        ];
+        self.append_row(row).await
+    }
+}
