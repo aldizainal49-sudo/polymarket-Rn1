@@ -4,7 +4,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use dashmap::DashMap;
-use tracing::{info, warn, error};
+use tracing::{info, error};
 use anyhow::Result;
 use chrono::Utc;
 
