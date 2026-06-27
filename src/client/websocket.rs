@@ -45,10 +45,10 @@ impl WebSocketManager {
                                 if let Some(token_id) = price_data.get("token_id").and_then(|v| v.as_str()) {
                                     if let Some(price_str) = price_data.get("price").and_then(|v| v.as_str()) {
                                         if let Ok(price) = Decimal::from_str_exact(price_str) {
-                                            let _ = price_tx.send(PriceUpdate { 
-                                                market_id: market_id.to_string(), 
-                                                token_id: token_id.to_string(), 
-                                                price 
+                                            let _ = price_tx.send(PriceUpdate {
+                                                market_id: market_id.to_string(),
+                                                token_id: token_id.to_string(),
+                                                price
                                             }).await;
                                         }
                                     }
