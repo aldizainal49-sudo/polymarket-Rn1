@@ -4,7 +4,7 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use rust_decimal::Decimal;
-use tracing::{info, error};
+use tracing::info;
 use anyhow::Result;
 use crate::config::Config;
 
