@@ -1,12 +1,10 @@
 use std::sync::Arc;
 use tokio::time::{self, Duration};
-use tracing::{info, error, warn};
-use rust_decimal::Decimal;
+use tracing::info;
 
 use crate::config::Config;
 use crate::client::ClobClient;
 use crate::client::GammaClient;
-use crate::client::types::OrderSide;
 use crate::client::websocket::{WebSocketManager, PriceUpdate};
 use crate::order::OrderManager;
 use crate::order::paper_executor::PaperExecutor;
@@ -98,20 +96,19 @@ impl TradingEngine {
         let ws_manager = WebSocketManager::new(Arc::new(self.config.clone()), price_tx);
         tokio::spawn(async move { 
             if let Err(e) = ws_manager.run().await { 
-                error!("WS error: {}", e); 
+                eprintln!("WS error: {}", e); 
             } 
         });
 
-        let hft_engine = self.hft_engine.clone();
-        let hedging_engine = self.hedging_engine.clone();
-        let hold_engine = self.hold_engine.clone();
-        let farming_engine = self.farming_engine.clone();
+        let _hft_engine = self.hft_engine.clone();
+        let _hedging_engine = self.hedging_engine.clone();
+        let _hold_engine = self.hold_engine.clone();
+        let _farming_engine = self.farming_engine.clone();
         let order_manager = self.order_manager.clone();
         let clob = self.clob_client.clone();
         let gamma = self.gamma_client.clone();
         let market_making_engine = MarketMakingEngine::new(&self.config.trading);
 
-        // MAIN LOOP
         let scan_interval = self.config.trading.scan_interval_ms;
         let main_task = tokio::spawn(async move {
             let mut interval = time::interval(Duration::from_millis(scan_interval));
