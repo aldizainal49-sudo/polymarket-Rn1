@@ -16,7 +16,7 @@ impl MarketMakingEngine {
         let mut orders = Vec::new();
         let mid = order_book.mid_price;
         let spread = self.config.maker_spread;
-        
+
         let yes_bid = (mid - spread).max(Decimal::ZERO);
         if yes_bid > Decimal::ZERO {
             orders.push(MakerOrder {
@@ -27,7 +27,7 @@ impl MarketMakingEngine {
                 post_only: true
             });
         }
-        
+
         let yes_ask = (mid + spread).min(Decimal::ONE);
         if yes_ask < Decimal::ONE {
             orders.push(MakerOrder {
@@ -38,7 +38,7 @@ impl MarketMakingEngine {
                 post_only: true
             });
         }
-        
+
         orders
     }
 }
