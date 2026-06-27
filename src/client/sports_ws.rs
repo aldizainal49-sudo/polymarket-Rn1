@@ -56,7 +56,7 @@ impl SportsWebSocket {
                     let elapsed = record.get("elapsed").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let status = record.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string();
                     let live = record.get("live").and_then(|v| v.as_bool()).unwrap_or(false);
-                    
+
                     let match_data = LiveMatchData {
                         game_id,
                         slug: slug.clone(),
