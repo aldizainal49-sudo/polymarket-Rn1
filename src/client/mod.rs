@@ -8,6 +8,6 @@ pub mod pmxt_ws_pool;
 pub mod sportradar;
 pub mod types;
 
-pub use types::{Order, OrderSide, OrderStatus, OrderBook, MarketData, PriceTick, TokenInfo};
+pub use types::{Order, OrderSide, OrderStatus, OrderBook};
 pub use clob::ClobClient;
 pub use gamma::GammaClient;
