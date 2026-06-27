@@ -15,7 +15,7 @@ impl MispricingEngine {
     pub fn calculate_ev(&self, market: &MarketData) -> Option<MispricingSignal> {
         let yes_price = market.yes_price;
         let sum = yes_price + market.no_price;
-        
+
         if sum < Decimal::ONE && Decimal::ONE - sum >= self.config.min_ev_threshold {
             return Some(MispricingSignal {
                 market_id: market.market_id.clone(),
@@ -27,7 +27,7 @@ impl MispricingEngine {
                 size: self.config.order_size
             });
         }
-        
+
         if yes_price < self.config.mispricing_low_threshold {
             let estimated = self.estimate_true_probability(market);
             if estimated > yes_price + self.config.min_ev_threshold {
@@ -42,7 +42,7 @@ impl MispricingEngine {
                 });
             }
         }
-        
+
         if yes_price > self.config.mispricing_high_threshold {
             let estimated = self.estimate_true_probability(market);
             let no_implied = Decimal::ONE - yes_price;
@@ -59,7 +59,7 @@ impl MispricingEngine {
                 });
             }
         }
-        
+
         None
     }
 
