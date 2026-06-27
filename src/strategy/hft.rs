@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use rust_decimal::Decimal;
-use rust_decimal::prelude::*;
 use tokio::sync::mpsc;
 use tracing::info;
 use dashmap::DashMap;
@@ -37,7 +36,6 @@ impl HftEngine {
         while let Some(update) = price_rx.recv().await {
             self.price_cache.insert(update.token_id.clone(), update.price);
             
-            // Check for arbitrage opportunities
             if self.config.arbitrage_threshold > Decimal::ZERO {
                 self.check_arbitrage(&update).await?;
             }
@@ -46,8 +44,6 @@ impl HftEngine {
     }
 
     async fn check_arbitrage(&self, update: &PriceUpdate) -> Result<(), anyhow::Error> {
-        // Implement arbitrage logic here
-        // For now, just log the price update
         info!("Price update: {} @ {}", update.token_id, update.price);
         Ok(())
     }
