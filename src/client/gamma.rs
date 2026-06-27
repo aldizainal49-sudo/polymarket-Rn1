@@ -1,7 +1,6 @@
 use reqwest::Client;
 use serde_json::Value;
 use rust_decimal::Decimal;
-use rust_decimal::prelude::*;
 use crate::client::types::MarketData;
 
 #[derive(Debug)]
