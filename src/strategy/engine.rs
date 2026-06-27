@@ -94,10 +94,10 @@ impl TradingEngine {
 
         let (price_tx, _price_rx) = tokio::sync::mpsc::channel::<PriceUpdate>(10000);
         let ws_manager = WebSocketManager::new(Arc::new(self.config.clone()), price_tx);
-        tokio::spawn(async move { 
-            if let Err(e) = ws_manager.run().await { 
-                eprintln!("WS error: {}", e); 
-            } 
+        tokio::spawn(async move {
+            if let Err(e) = ws_manager.run().await {
+                eprintln!("WS error: {}", e);
+            }
         });
 
         let _hft_engine = self.hft_engine.clone();
